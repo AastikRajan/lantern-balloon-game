@@ -6,3 +6,35 @@ html, body { height: 100%; overflow: hidden; background: #1a1030; touch-action: 
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
            calc(env(safe-area-inset-bottom) + 12px) env(safe-area-inset-left); }
 #ui .interactive { pointer-events: auto; }
+
+/* --- HUD --- */
+.hud { position: absolute; top: calc(env(safe-area-inset-top) + 14px); left: 0; right: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.hud-score { font-size: 44px; font-weight: 800; color: #fff;
+  text-shadow: 0 2px 18px rgba(255, 160, 80, .45); font-variant-numeric: tabular-nums; }
+.hud-flame { width: 130px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.14);
+  overflow: hidden; }
+.hud-flame-fill { height: 100%; border-radius: 3px; width: 70%;
+  background: linear-gradient(90deg, #ff7a2a, #ffd27a);
+  transition: width .25s ease; }
+.hud-flame-fill.low { background: linear-gradient(90deg, #ff3b3b, #ff7a2a);
+  animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .55; } }
+
+/* --- Screens (glass panels, thumb-zone CTA) --- */
+.screen { position: absolute; inset: 0; display: none; flex-direction: column;
+  align-items: center; justify-content: flex-end;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 12vh); text-align: center; }
+.screen.visible { display: flex; }
+.title { font-size: clamp(44px, 12vw, 72px); font-weight: 800; letter-spacing: .04em;
+  color: #ffe9c9; text-shadow: 0 0 34px rgba(255,150,60,.55); margin-bottom: 6px; }
+.hint, .over-label { color: rgba(255,255,255,.75); font-size: 15px; margin-bottom: 26px; }
+.final-score { font-size: 64px; font-weight: 800; color: #ffe9c9;
+  text-shadow: 0 0 28px rgba(255,150,60,.5); }
+.best-score { color: rgba(255,255,255,.6); font-size: 14px; margin-bottom: 24px; }
+.cta { padding: 16px 52px; font-size: 19px; font-weight: 700; color: #2a1606;
+  border: none; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(135deg, #ffd27a, #ff8c3a);
+  box-shadow: 0 8px 32px rgba(255,140,58,.4), inset 0 1px 0 rgba(255,255,255,.5);
+  backdrop-filter: blur(10px); transition: transform .12s ease; }
+.cta:active { transform: scale(.95); }
