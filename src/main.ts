@@ -38,6 +38,7 @@ async function boot() {
   const combo = new Combo();
   let spawner = new Spawner(Date.now() % 100000, PLAY_HALF_WIDTH - 0.5);
   let invulnUntil = 0; // run clock seconds
+  let rescuedThisRun = 0;
 
   const clock = () => performance.now() / 1000;
 
@@ -63,6 +64,13 @@ async function boot() {
       if (flame.dead) sm.transition('gameover');
     });
     physics.events.on('emberCollected', () => { flame.flare(); sfx.ember(); });
+    physics.events.on('wispRescued', () => {
+      flame.flare(10);
+      const lp = physics.lanternPosition();
+      sparks.burst(lp.x, lp.y, 6);
+      sfx.rescue();
+      rescuedThisRun++;
+    });
     physics.events.on('shieldDeflect', ({ x, y, speed, perfect }) => {
       const c = combo.deflect(clock());
       sparks.burst(x, y, perfect ? speed + 10 : speed);
@@ -86,6 +94,7 @@ async function boot() {
     score.reset();
     combo.reset();
     invulnUntil = 0;
+    rescuedThisRun = 0;
     spawner = new Spawner(Date.now() % 100000, PLAY_HALF_WIDTH - 0.5);
     hud.setVisible(true);
     screens.show('none');
@@ -125,6 +134,7 @@ async function boot() {
     if (spawn) {
       const spawnY = gfx.camera.position.y + 10;
       if (spawn.kind === 'ember') physics.spawnEmber(spawn.x, spawnY);
+      else if (spawn.kind === 'wisp') physics.spawnWisp(spawn.x * 0.3, gfx.camera.position.y + 4);
       else physics.spawnObstacle(spawn.kind, spawn.x, spawnY);
     }
     physics.cullBelow(gfx.camera.position.y - 12);

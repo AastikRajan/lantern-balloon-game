@@ -11,7 +11,7 @@ export const BURST_COST = 22;            // flame spent per burst
 export const BURST_STRENGTH = 16;        // outward impulse scale
 
 export interface ObstacleState {
-  kind: Exclude<SpawnKind, 'ember'>;
+  kind: Exclude<SpawnKind, 'ember' | 'wisp'>;
   body: RAPIER.RigidBody;
 }
 export interface EmberState { body: RAPIER.RigidBody; }
@@ -19,10 +19,11 @@ export interface EmberState { body: RAPIER.RigidBody; }
 type PhysicsEvents = {
   lanternHit: { speed: number };
   emberCollected: Record<string, never>;
+  wispRescued: Record<string, never>;
   shieldDeflect: { x: number; y: number; speed: number; perfect: boolean };
 };
 
-const OBSTACLE_SHAPES: Record<Exclude<SpawnKind, 'ember'>, { hx: number; hy: number; density: number }> = {
+const OBSTACLE_SHAPES: Record<Exclude<SpawnKind, 'ember' | 'wisp'>, { hx: number; hy: number; density: number }> = {
   tile:   { hx: 0.55, hy: 0.35, density: 1.4 },
   kite:   { hx: 0.45, hy: 0.45, density: 0.6 },
   branch: { hx: 1.1,  hy: 0.18, density: 1.0 },
@@ -41,6 +42,8 @@ export class PhysicsWorld {
   private shieldTarget: { x: number; y: number };
   private obstacles = new Map<number, ObstacleState>(); // collider handle -> state
   private embers = new Map<number, EmberState>();
+  private wisps = new Map<number, { body: RAPIER.RigidBody; seed: number }>();
+  private wispClock = 0;
 
   constructor() {
     // Lantern: floats upward, only jostled by obstacles that get through.
@@ -98,8 +101,11 @@ export class PhysicsWorld {
   forEachEmber(fn: (x: number, y: number) => void): void {
     this.embers.forEach((e) => { const t = e.body.translation(); fn(t.x, t.y); });
   }
+  forEachWisp(fn: (x: number, y: number) => void): void {
+    this.wisps.forEach((w) => { const t = w.body.translation(); fn(t.x, t.y); });
+  }
 
-  spawnObstacle(kind: Exclude<SpawnKind, 'ember'>, x: number, y: number): void {
+  spawnObstacle(kind: Exclude<SpawnKind, 'ember' | 'wisp'>, x: number, y: number): void {
     const shape = OBSTACLE_SHAPES[kind];
     const body = this.world.createRigidBody(
       RAPIER.RigidBodyDesc.dynamic()
@@ -129,6 +135,18 @@ export class PhysicsWorld {
     this.embers.set(col.handle, { body });
   }
 
+  spawnWisp(x: number, y: number): void {
+    const body = this.world.createRigidBody(
+      RAPIER.RigidBodyDesc.dynamic().setTranslation(x, y).setGravityScale(0),
+    );
+    const col = this.world.createCollider(
+      RAPIER.ColliderDesc.ball(0.5).setSensor(true)
+        .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS),
+      body,
+    );
+    this.wisps.set(col.handle, { body, seed: Math.random() * 100 });
+  }
+
   step(dt: number): void {
     // steady rise toward RISE_SPEED; lateral self-centering keeps it readable
     const v = this.lantern.linvel();
@@ -137,6 +155,13 @@ export class PhysicsWorld {
 
     // drive the kinematic shield to the player's commanded position
     this.shield.setNextKinematicTranslation({ x: this.shieldTarget.x, y: this.shieldTarget.y });
+
+    // wisps drift gently upward with a little horizontal wander
+    this.wispClock += dt;
+    this.wisps.forEach((w) => {
+      const wander = Math.sin(this.wispClock * 1.3 + w.seed) * 0.6;
+      w.body.setLinvel({ x: wander, y: 1.1 }, true);
+    });
 
     this.world.timestep = dt;
     this.world.step(this.queue);
@@ -169,6 +194,13 @@ export class PhysicsWorld {
         this.events.emit('emberCollected', {});
         return;
       }
+      const wisp = this.wisps.get(other);
+      if (wisp) {
+        this.world.removeRigidBody(wisp.body);
+        this.wisps.delete(other);
+        this.events.emit('wispRescued', {});
+        return;
+      }
       const obs = this.obstacles.get(other);
       if (obs) {
         const ov = obs.body.linvel();
@@ -199,6 +231,9 @@ export class PhysicsWorld {
     const dropEmb: number[] = [];
     this.embers.forEach((e, h) => { if (e.body.translation().y < y) dropEmb.push(h); });
     dropEmb.forEach((h) => { this.world.removeRigidBody(this.embers.get(h)!.body); this.embers.delete(h); });
+    const dropW: number[] = [];
+    this.wisps.forEach((w, h) => { if (w.body.translation().y < y) dropW.push(h); });
+    dropW.forEach((h) => { this.world.removeRigidBody(this.wisps.get(h)!.body); this.wisps.delete(h); });
   }
 
   dispose(): void { this.world.free(); this.queue.free(); }

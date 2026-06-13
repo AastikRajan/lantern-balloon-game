@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Pool } from '../core/pool';
+import { radialGlowTexture } from './glow';
 import type { PhysicsWorld } from '../physics/world';
 
 const GEOMETRIES: Record<string, THREE.BufferGeometry> = {
@@ -17,9 +18,12 @@ const MATERIALS: Record<string, THREE.MeshStandardMaterial> = {
 };
 const EMBER_MAT = new THREE.MeshBasicMaterial({ color: '#ffd27a' }); // blooms
 
+const WISP_TEX = radialGlowTexture('rgba(210,245,255,1)', 'rgba(120,200,255,0)');
+
 export class ObstacleVisuals {
   private pools = new Map<string, Pool<THREE.Mesh>>();
   private emberPool: Pool<THREE.Mesh>;
+  private wispPool: Pool<THREE.Sprite>;
 
   constructor(private scene: THREE.Scene) {
     for (const kind of Object.keys(GEOMETRIES)) {
@@ -32,6 +36,15 @@ export class ObstacleVisuals {
       () => { const m: THREE.Mesh = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 10), EMBER_MAT); scene.add(m); return m; },
       (m) => { m.visible = true; return m; },
     );
+    this.wispPool = new Pool<THREE.Sprite>(
+      () => {
+        const s = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: WISP_TEX, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true,
+        }));
+        scene.add(s); return s;
+      },
+      (s) => { s.visible = true; return s; },
+    );
   }
 
   /** Re-acquire pooled meshes each frame to mirror the physics state. */
@@ -39,6 +52,8 @@ export class ObstacleVisuals {
     this.pools.forEach((p) => { p.active.forEach((m) => (m.visible = false)); p.releaseAll(); });
     this.emberPool.active.forEach((m) => (m.visible = false));
     this.emberPool.releaseAll();
+    this.wispPool.active.forEach((s) => (s.visible = false));
+    this.wispPool.releaseAll();
 
     physics.forEachObstacle((kind, x, y, rot) => {
       const mesh = this.pools.get(kind)!.acquire();
@@ -50,6 +65,12 @@ export class ObstacleVisuals {
       mesh.position.set(x, y, 0);
       const s = 1 + Math.sin(time * 6 + x) * 0.15;
       mesh.scale.setScalar(s);
+    });
+    physics.forEachWisp((x, y) => {
+      const sprite = this.wispPool.acquire();
+      sprite.position.set(x, y, 0.1);
+      const s = 1.5 + Math.sin(time * 3 + x) * 0.25;
+      sprite.scale.set(s, s, 1);
     });
   }
 }

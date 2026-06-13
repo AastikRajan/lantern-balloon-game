@@ -1,4 +1,4 @@
-export type SpawnKind = 'tile' | 'kite' | 'branch' | 'ember';
+export type SpawnKind = 'tile' | 'kite' | 'branch' | 'ember' | 'wisp';
 export interface SpawnRequest { kind: SpawnKind; x: number; }
 
 export function spawnInterval(altitude: number): number {
@@ -33,6 +33,7 @@ export class Spawner {
     this.count++;
     const x = (this.rng() * 2 - 1) * this.halfWidth;
     if (this.count % 5 === 0) return { kind: 'ember', x };
+    if (this.count % 7 === 0) return { kind: 'wisp', x };
     const kind = OBSTACLE_KINDS[Math.floor(this.rng() * OBSTACLE_KINDS.length)];
     return { kind, x };
   }
