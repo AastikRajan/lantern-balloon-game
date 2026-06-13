@@ -8,9 +8,10 @@ import { GameScene } from './render/scene';
 import { Sky } from './render/sky';
 import { Starfield } from './render/starfield';
 import { LanternVisual } from './render/lantern';
+import { ShieldVisual } from './render/shield';
 import { ObstacleVisuals } from './render/obstacles';
 import { PostChain } from './render/post';
-import { GustParticles } from './render/particles';
+import { Sparks } from './render/particles';
 import { Hud } from './ui/hud';
 import { Screens } from './ui/screens';
 
@@ -23,9 +24,10 @@ async function boot() {
   const sky = new Sky();
   const stars = new Starfield();
   const lanternVis = new LanternVisual();
+  const shieldVis = new ShieldVisual();
   const obstacleVis = new ObstacleVisuals(gfx.scene);
-  const gust = new GustParticles();
-  gfx.scene.add(sky.mesh, stars.points, lanternVis.group, gust.points);
+  const sparks = new Sparks();
+  gfx.scene.add(sky.mesh, stars.points, lanternVis.group, shieldVis.group, sparks.points);
   const post = new PostChain(gfx.renderer, gfx.scene, gfx.camera);
 
   let physics = new PhysicsWorld();
@@ -43,6 +45,7 @@ async function boot() {
       if (flame.dead) sm.transition('gameover');
     });
     physics.events.on('emberCollected', () => flame.flare());
+    physics.events.on('shieldDeflect', ({ x, y, speed }) => sparks.burst(x, y, speed));
   }
 
   const startRun = () => {
@@ -70,27 +73,14 @@ async function boot() {
 
   wirePhysicsEvents();
 
-  // --- Input: pointer swipes -> gust segments in world space ---
-  let lastPointer: { x: number; y: number; t: number } | null = null;
-  canvas.addEventListener('pointerdown', (e) => {
-    lastPointer = { x: e.clientX, y: e.clientY, t: performance.now() };
-  });
-  canvas.addEventListener('pointermove', (e) => {
-    if (!lastPointer || sm.state !== 'run') return;
-    const now = performance.now();
-    const dt = Math.max(1, now - lastPointer.t) / 1000;
-    const a = gfx.screenToWorld(lastPointer.x, lastPointer.y);
-    const b = gfx.screenToWorld(e.clientX, e.clientY);
-    const dist = Math.hypot(b.x - a.x, b.y - a.y);
-    if (dist > 0.05) {
-      const seg = { ax: a.x, ay: a.y, bx: b.x, by: b.y, speed: Math.min(40, dist / dt) };
-      physics.applyGust(seg);
-      gust.burst(a.x, a.y, b.x, b.y, seg.speed);
-    }
-    lastPointer = { x: e.clientX, y: e.clientY, t: now };
-  });
-  canvas.addEventListener('pointerup', () => { lastPointer = null; });
-  canvas.addEventListener('pointercancel', () => { lastPointer = null; });
+  // --- Input: pointer position -> shield target, 1:1 and immediate ---
+  const trackPointer = (clientX: number, clientY: number) => {
+    if (sm.state !== 'run') return;
+    const w = gfx.screenToWorld(clientX, clientY);
+    physics.setShieldTarget(w.x, w.y);
+  };
+  canvas.addEventListener('pointerdown', (e) => trackPointer(e.clientX, e.clientY));
+  canvas.addEventListener('pointermove', (e) => trackPointer(e.clientX, e.clientY));
 
   // --- Fixed-step simulation ---
   const loop = new FixedLoop(1 / 60, (dt) => {
@@ -116,13 +106,15 @@ async function boot() {
 
     const pos = physics.lanternPosition();
     const vel = physics.lanternVelocity();
+    const sp = physics.shieldPosition();
     gfx.follow(pos.y);
     sky.update(gfx.camera.position.x, gfx.camera.position.y, pos.y);
     stars.update(gfx.camera.position.x, gfx.camera.position.y, now / 1000);
     lanternVis.update(pos.x, pos.y, vel.x, vel.y,
       flame.lightIntensity, flame.lightDistance, elapsedSec);
+    shieldVis.update(sp.x, sp.y, elapsedSec);
     obstacleVis.sync(physics, now / 1000);
-    gust.update(elapsedSec);
+    sparks.update(elapsedSec);
     post.setBrightness(flame.brightness);
     hud.update(score.points, flame.value);
     post.render(elapsedSec);

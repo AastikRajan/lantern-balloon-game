@@ -37,4 +37,23 @@ describe('PhysicsWorld', () => {
     for (let i = 0; i < 300 && collected === 0; i++) w.step(1 / 60);
     expect(collected).toBe(1);
   });
+
+  it('tracks the shield to the commanded target, offset above the finger', () => {
+    const w = new PhysicsWorld();
+    w.setShieldTarget(2, 1);
+    w.step(1 / 60);
+    const sp = w.shieldPosition();
+    expect(sp.x).toBeCloseTo(2, 1);
+    expect(sp.y).toBeGreaterThan(1); // sits above the touch point
+  });
+
+  it('emits shieldDeflect when an obstacle strikes the shield', () => {
+    const w = new PhysicsWorld();
+    let deflected = 0;
+    w.events.on('shieldDeflect', () => deflected++);
+    w.setShieldTarget(0, 4); // shield ends up above the lantern's path
+    w.spawnObstacle('tile', 0, 9);
+    for (let i = 0; i < 300 && deflected === 0; i++) w.step(1 / 60);
+    expect(deflected).toBeGreaterThan(0);
+  });
 });

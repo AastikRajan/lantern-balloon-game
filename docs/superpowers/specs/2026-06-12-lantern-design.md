@@ -18,9 +18,12 @@
 - Grazes/hits dim the flame (scaled by impact velocity). At flame 0 the lantern goes dark and falls — run over. Near zero: world darkens, vignette tightens, audio muffles, heartbeat rises.
 - **Embers** spawn along the path; collecting one flares the flame up and emits a bloom pulse.
 
-### 2.2 Wind gust control (one finger)
-- Swipe anywhere → directional impulse field along the swipe vector, visualized as flowing particle streaks.
-- Strong effect on debris, gentle nudge on the lantern (lets skilled players steer). Short flicks = small puffs; long sweeps = big clears. Fully analog (force ∝ swipe speed/length).
+### 2.2 Shield control (one finger) — REVISED 2026-06-12
+**Original "Wind Weaver" (swipe → wind impulse) was built and playtested; it failed.** Indirect physics control felt floaty and unresponsive (confirmed by game-feel research: indirect input "doesn't match player intuition, frustration builds, players churn"). Rise Up's whole appeal is a **direct 1:1 finger-to-shield connection**. Pivoted to that proven mechanic:
+- A glowing light-bar **shield tracks the finger/cursor 1:1 with zero smoothing** (kinematic body), offset slightly above the touch point so the finger doesn't occlude it on mobile.
+- The shield physically deflects falling debris (restitution + momentum transfer); sweeping it flings obstacles, holding it bounces them off. Deflections emit spark bursts.
+- The lantern is **not** player-piloted — it rises on its own and self-centers; the player's only job is to protect it with the shield. This protect-don't-pilot split is core to the genre.
+- Shield tint is cool/cyan so it reads instantly against the warm lantern and obstacles (shape + color signal).
 
 ### 2.3 Obstacles
 - Low-poly 3D rigid bodies (roof tiles, kites, branches, hail, ice shards — themed per biome) tumbling under Rapier physics on the z=0 gameplay plane. Fragments from breakable obstacles remain live hazards.
