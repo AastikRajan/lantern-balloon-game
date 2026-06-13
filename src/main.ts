@@ -5,9 +5,10 @@ import { Flame } from './gameplay/flame';
 import { Score } from './gameplay/score';
 import { Combo } from './gameplay/combo';
 import { Dda } from './gameplay/dda';
+import { ensureGoals, applyRun, type RunStats } from './gameplay/goals';
 import { Spawner } from './gameplay/spawner';
 import { GameScene } from './render/scene';
-import { Sky } from './render/sky';
+import { Sky, BIOME_HEIGHT } from './render/sky';
 import { Starfield } from './render/starfield';
 import { LanternVisual } from './render/lantern';
 import { ShieldVisual } from './render/shield';
@@ -45,9 +46,16 @@ async function boot() {
   let invulnUntil = 0; // run clock seconds
   let rescuedThisRun = 0;
   let embersThisRun = 0;
+  let deflectsThisRun = 0;
+  let perfectsThisRun = 0;
+  let maxComboThisRun = 0;
   let runPeak = 0;
+  let dailyMode = false;
+  let lastCompleted: string[] = [];
 
   const save = loadSave();
+  save.goals = ensureGoals(save.goals);
+  writeSave(save);
   const applySkin = () => {
     const skin = skinById(save.lanternSkin);
     lanternVis.setColor(skin.lantern);
@@ -88,9 +96,12 @@ async function boot() {
     });
     physics.events.on('shieldDeflect', ({ x, y, speed, perfect }) => {
       const c = combo.deflect(clock());
+      deflectsThisRun++;
+      if (c.count > maxComboThisRun) maxComboThisRun = c.count;
       sparks.burst(x, y, perfect ? speed + 10 : speed);
       score.addBonus(Math.round((perfect ? 25 : 10) * combo.scoreMultiplier));
       if (perfect) {
+        perfectsThisRun++;
         flame.flare(4);
         hud.flash(0.55);
         sfx.perfect(c.count);
@@ -113,30 +124,65 @@ async function boot() {
     invulnUntil = 0;
     rescuedThisRun = 0;
     embersThisRun = 0;
+    deflectsThisRun = 0;
+    perfectsThisRun = 0;
+    maxComboThisRun = 0;
     runPeak = 0;
     physics.setObstacleGravityScale(dda.ease);
     shieldVis.setHalfWidth(loadout.shieldHalfWidth);
     applySkin();
-    spawner = new Spawner(Date.now() % 100000, PLAY_HALF_WIDTH - 0.5);
+    const seed = dailyMode ? dailySeed() : Date.now() % 100000;
+    spawner = new Spawner(seed, PLAY_HALF_WIDTH - 0.5);
     hud.setVisible(true);
     screens.show('none');
   };
+
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+  function dailySeed(): number {
+    return [...todayStr()].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  }
 
   const bankRun = () => {
     save.embers += embersThisRun + rescuedThisRun * 3;
     save.wispsTotal += rescuedThisRun;
     save.bestScore = Math.max(save.bestScore, score.points);
+
+    const biome = Math.min(3, Math.floor(runPeak / BIOME_HEIGHT));
+    const stats: RunStats = {
+      deflects: deflectsThisRun, perfects: perfectsThisRun, maxCombo: maxComboThisRun,
+      wisps: rescuedThisRun, embers: embersThisRun, biome, score: score.points,
+    };
+    const res = applyRun(save.goals, stats);
+    save.goals = res.goals;
+    save.embers += res.reward;
+    lastCompleted = res.completed.map((c) => c.desc);
+
+    if (dailyMode) {
+      const today = todayStr();
+      if (save.daily.date !== today) {
+        const prev = new Date(save.daily.date || 0).getTime();
+        const isYesterday = today !== save.daily.date &&
+          Date.now() - prev < 1000 * 60 * 60 * 48 && save.daily.date !== '';
+        save.daily = { date: today, best: score.points, streak: isYesterday ? save.daily.streak + 1 : 1 };
+      } else {
+        save.daily.best = Math.max(save.daily.best, score.points);
+      }
+    }
+
     writeSave(save);
     screens.setCurrency(save.embers);
+    screens.setGoals(save.goals);
   };
 
   const screens = new Screens(
     uiRoot,
-    () => sm.transition('run'),
+    () => { dailyMode = false; sm.transition('run'); },
     () => sm.transition('run'),
     () => shop.open(),
+    () => { dailyMode = true; sm.transition('run'); },
   );
   screens.setCurrency(save.embers);
+  screens.setGoals(save.goals);
 
   const shop = new Shop(uiRoot, save, () => { writeSave(save); applySkin(); screens.setCurrency(save.embers); });
 
@@ -148,7 +194,7 @@ async function boot() {
       bankRun();
       hud.setVisible(false);
       sfx.gameover();
-      screens.show('over', score.points, save.bestScore);
+      screens.show('over', score.points, save.bestScore, lastCompleted);
     },
   });
 

@@ -72,6 +72,19 @@ html, body { height: 100%; overflow: hidden; background: #1a1030; touch-action: 
 .cta-ghost:active { transform: scale(.95); }
 .home-bank { position: absolute; top: calc(env(safe-area-inset-top) + 18px); right: 20px;
   color: #ffe2a6; font-size: 17px; font-weight: 700; text-shadow: 0 0 16px rgba(255,180,80,.5); }
+.home-row { display: flex; gap: 12px; margin-top: 14px; }
+
+/* goal cards on home */
+.home-goals { width: min(86vw, 360px); display: flex; flex-direction: column; gap: 8px; margin-bottom: 22px; }
+.goal { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px; padding: 9px 12px; backdrop-filter: blur(6px); }
+.goal-top { display: flex; justify-content: space-between; font-size: 13px; color: #f2e6d4; margin-bottom: 6px; }
+.goal-rw { color: #ffd27a; font-weight: 700; }
+.goal-bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.goal-bar > div { height: 100%; border-radius: 3px; background: linear-gradient(90deg,#ff7a2a,#ffd27a); transition: width .3s; }
+.over-completed { display: flex; flex-direction: column; gap: 5px; margin-bottom: 20px; }
+.goal-done { color: #ffe2a6; font-size: 14px; font-weight: 600;
+  text-shadow: 0 0 14px rgba(255,180,80,.5); animation: combopop .3s ease-out; }
 
 /* --- Workshop --- */
 .shop { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
