@@ -14,10 +14,10 @@ export class PostChain {
 
     const bloom = new BloomEffect({
       mipmapBlur: true,            // cheap, soft, mobile-friendly
-      luminanceThreshold: 0.55,    // catch the warm glow, not just pure white
-      luminanceSmoothing: 0.32,
-      intensity: 1.9,
-      radius: 0.78,
+      luminanceThreshold: 0.6,     // catch the warm glow, not just pure white
+      luminanceSmoothing: 0.35,
+      intensity: 1.45,
+      radius: 0.72,
     });
     this.vignette = new VignetteEffect({ darkness: 0.45, offset: 0.3 });
     const smaa = new SMAAEffect();

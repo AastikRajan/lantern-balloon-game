@@ -3,9 +3,9 @@ import { Spawner, spawnInterval } from '../src/gameplay/spawner';
 
 describe('spawnInterval', () => {
   it('shrinks with altitude and clamps at floor', () => {
-    expect(spawnInterval(0)).toBeCloseTo(1.05);
-    expect(spawnInterval(200)).toBeLessThan(1.05);
-    expect(spawnInterval(10_000)).toBeCloseTo(0.45);
+    expect(spawnInterval(0)).toBeCloseTo(0.8);
+    expect(spawnInterval(200)).toBeLessThan(0.8);
+    expect(spawnInterval(10_000)).toBeCloseTo(0.36);
   });
 });
 

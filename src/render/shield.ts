@@ -28,14 +28,18 @@ export class ShieldVisual {
     this.group.add(this.glow, this.bar);
   }
 
+  private tilt = 0;
+
   update(x: number, y: number, dt: number): void {
     this.time += dt;
     this.group.position.set(x, y, 0.3);
-    // tilt slightly toward travel direction for a lively, hand-of-wind feel
+    // tilt slightly toward travel direction, smoothed so it never jitters
     const vx = (x - this.prevX) / Math.max(dt, 1 / 120);
     this.prevX = x;
-    this.group.rotation.z = THREE.MathUtils.clamp(-vx * 0.03, -0.4, 0.4);
-    const pulse = 1 + Math.sin(this.time * 8) * 0.05;
+    const targetTilt = THREE.MathUtils.clamp(-vx * 0.02, -0.35, 0.35);
+    this.tilt += (targetTilt - this.tilt) * (1 - Math.pow(0.001, dt));
+    this.group.rotation.z = this.tilt;
+    const pulse = 1 + Math.sin(this.time * 2.4) * 0.04;
     (this.bar.material as THREE.MeshStandardMaterial).emissiveIntensity = 3.0 * pulse;
     (this.glow.material as THREE.SpriteMaterial).opacity = 0.6 * pulse;
   }

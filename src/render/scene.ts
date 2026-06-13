@@ -10,7 +10,6 @@ export class GameScene {
       canvas,
       antialias: false,           // SMAA in post instead
       stencil: false,
-      depth: false,               // composer owns depth
       powerPreference: 'high-performance',
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -37,8 +36,9 @@ export class GameScene {
   }
 
   /** Camera follows lantern altitude with a slight lead. */
-  follow(lanternY: number): void {
-    this.camera.position.y += (lanternY + 1.5 - this.camera.position.y) * 0.08;
+  follow(lanternY: number, dt = 1 / 60): void {
+    const damp = 1 - Math.pow(0.0006, dt); // frame-rate independent
+    this.camera.position.y += (lanternY + 1.8 - this.camera.position.y) * damp;
   }
 
   /** Screen px -> world coords on the z=0 plane. */

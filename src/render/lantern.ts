@@ -9,6 +9,8 @@ export class LanternVisual {
   private halo: THREE.Sprite;
   private coreGlow: THREE.Sprite;
   private time = 0;
+  private stretchSmoothed = 1;
+  private rotSmoothed = 0;
 
   constructor() {
     // Soft outer halo (big, feeds bloom) — sits behind everything in the group
@@ -56,23 +58,29 @@ export class LanternVisual {
     this.group.position.set(x, y, 0);
     this.time += dt;
     const f = THREE.MathUtils.clamp(lightIntensity / 68, 0, 1); // 0..1 flame level
+    // frame-rate-independent damping factor
+    const damp = 1 - Math.pow(0.001, dt);
 
-    // squash & stretch from velocity + gentle idle breathing
-    const stretch = THREE.MathUtils.clamp(1 + (vy - 2.2) * 0.06, 0.85, 1.18);
-    const breathe = 1 + Math.sin(this.time * 2.2) * 0.018;
-    this.body.scale.set((1 / stretch) * breathe, stretch * breathe, (1 / stretch) * breathe);
-    this.group.rotation.z = THREE.MathUtils.clamp(-vx * 0.05, -0.22, 0.22);
+    // squash & stretch, smoothed so it eases instead of snapping/jittering
+    const targetStretch = THREE.MathUtils.clamp(1 + (vy - 2.2) * 0.05, 0.9, 1.14);
+    this.stretchSmoothed += (targetStretch - this.stretchSmoothed) * damp;
+    const breathe = 1 + Math.sin(this.time * 1.6) * 0.014;
+    const s = this.stretchSmoothed * breathe;
+    this.body.scale.set(breathe / this.stretchSmoothed, s, breathe / this.stretchSmoothed);
+    const targetRot = THREE.MathUtils.clamp(-vx * 0.04, -0.18, 0.18);
+    this.rotSmoothed += (targetRot - this.rotSmoothed) * damp;
+    this.group.rotation.z = this.rotSmoothed;
 
-    // flame flicker drives light + emissive + glow sizes together
-    const flicker = 1 + Math.sin(this.time * 13.7) * 0.06 + Math.sin(this.time * 31.3) * 0.03;
+    // gentle, low-frequency candle flicker — NEVER strobe the scene light
+    const flicker = 1 + Math.sin(this.time * 2.3) * 0.03 + Math.sin(this.time * 3.7 + 1.3) * 0.02;
     this.light.intensity = lightIntensity * flicker;
     this.light.distance = lightDistance;
     (this.body.material as THREE.MeshStandardMaterial).emissiveIntensity = (1.2 + 2.4 * f) * flicker;
-    this.flame.scale.setScalar((0.6 + 0.7 * f) * flicker);
+    this.flame.scale.setScalar((0.7 + 0.6 * f) * flicker);
 
-    const haloScale = (5.0 + 3.0 * f) * (0.97 + 0.06 * Math.sin(this.time * 9.1));
+    const haloScale = (5.0 + 3.0 * f) * (0.99 + 0.025 * Math.sin(this.time * 1.9));
     this.halo.scale.set(haloScale, haloScale, 1);
-    (this.halo.material as THREE.SpriteMaterial).opacity = (0.35 + 0.35 * f) * flicker;
+    (this.halo.material as THREE.SpriteMaterial).opacity = (0.32 + 0.34 * f) * flicker;
     this.coreGlow.scale.setScalar((1.2 + 0.8 * f) * flicker);
   }
 }

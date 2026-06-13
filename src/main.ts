@@ -14,6 +14,7 @@ import { PostChain } from './render/post';
 import { Sparks } from './render/particles';
 import { Hud } from './ui/hud';
 import { Screens } from './ui/screens';
+import { Sfx } from './audio/sfx';
 
 async function boot() {
   await PhysicsWorld.init();
@@ -21,7 +22,7 @@ async function boot() {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const uiRoot = document.getElementById('ui')!;
   const gfx = new GameScene(canvas);
-  const sky = new Sky();
+  const sky = new Sky(gfx.scene);
   const stars = new Starfield();
   const lanternVis = new LanternVisual();
   const shieldVis = new ShieldVisual();
@@ -37,18 +38,21 @@ async function boot() {
 
   const hud = new Hud(uiRoot);
   hud.setVisible(false);
+  const sfx = new Sfx();
 
   function wirePhysicsEvents() {
     physics.events.on('lanternHit', ({ speed }) => {
       if (sm.state !== 'run') return;
       flame.hit(speed);
+      sfx.hit();
       if (flame.dead) sm.transition('gameover');
     });
-    physics.events.on('emberCollected', () => flame.flare());
-    physics.events.on('shieldDeflect', ({ x, y, speed }) => sparks.burst(x, y, speed));
+    physics.events.on('emberCollected', () => { flame.flare(); sfx.ember(); });
+    physics.events.on('shieldDeflect', ({ x, y, speed }) => { sparks.burst(x, y, speed); sfx.deflect(speed); });
   }
 
   const startRun = () => {
+    sfx.resume(); // triggered from the Rise/Retry button gesture
     physics.dispose();
     physics = new PhysicsWorld();
     wirePhysicsEvents();
@@ -68,7 +72,7 @@ async function boot() {
   const sm = new GameStateMachine({
     menu: () => { hud.setVisible(false); screens.show('home'); },
     run: startRun,
-    gameover: () => { hud.setVisible(false); screens.show('over', score.points); },
+    gameover: () => { hud.setVisible(false); sfx.gameover(); screens.show('over', score.points); },
   });
 
   wirePhysicsEvents();
@@ -107,7 +111,7 @@ async function boot() {
     const pos = physics.lanternPosition();
     const vel = physics.lanternVelocity();
     const sp = physics.shieldPosition();
-    gfx.follow(pos.y);
+    gfx.follow(pos.y, elapsedSec);
     sky.update(gfx.camera.position.x, gfx.camera.position.y, pos.y);
     stars.update(gfx.camera.position.x, gfx.camera.position.y, now / 1000);
     lanternVis.update(pos.x, pos.y, vel.x, vel.y,

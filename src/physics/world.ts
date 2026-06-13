@@ -2,7 +2,7 @@ import RAPIER from '@dimforge/rapier2d-compat';
 import { EventBus } from '../core/events';
 import type { SpawnKind } from '../gameplay/spawner';
 
-export const RISE_SPEED = 2.2;           // world units / s
+export const RISE_SPEED = 3.8;           // world units / s
 export const PLAY_HALF_WIDTH = 5;        // gameplay corridor half width
 export const SHIELD_HALF_WIDTH = 1.0;    // shield bar half length
 export const SHIELD_FINGER_OFFSET = 1.1; // shield sits this far above the touch point
@@ -29,7 +29,7 @@ export class PhysicsWorld {
   static async init(): Promise<void> { await RAPIER.init(); }
 
   readonly events = new EventBus<PhysicsEvents>();
-  private world = new RAPIER.World({ x: 0, y: -5.0 });
+  private world = new RAPIER.World({ x: 0, y: -8.5 });
   private queue = new RAPIER.EventQueue(true);
   private lantern: RAPIER.RigidBody;
   private lanternCollider: RAPIER.Collider;

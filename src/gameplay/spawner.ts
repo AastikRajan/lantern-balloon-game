@@ -2,8 +2,8 @@ export type SpawnKind = 'tile' | 'kite' | 'branch' | 'ember';
 export interface SpawnRequest { kind: SpawnKind; x: number; }
 
 export function spawnInterval(altitude: number): number {
-  const t = Math.min(1, altitude / 400);
-  return 1.05 - (1.05 - 0.45) * t;
+  const t = Math.min(1, altitude / 500);
+  return 0.8 - (0.8 - 0.36) * t;
 }
 
 /** Deterministic LCG so runs are reproducible per seed. */
