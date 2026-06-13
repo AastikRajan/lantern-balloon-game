@@ -11,5 +11,8 @@ export class Score {
     }
   }
 
+  /** Flat bonus from deflects/perfects/combos. */
+  addBonus(points: number): void { this.raw += points; }
+
   reset(): void { this.raw = 0; this.bestAltitude = 0; }
 }

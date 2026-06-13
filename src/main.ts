@@ -1,8 +1,9 @@
-import { PhysicsWorld, PLAY_HALF_WIDTH } from './physics/world';
+import { PhysicsWorld, PLAY_HALF_WIDTH, BURST_COST } from './physics/world';
 import { FixedLoop } from './core/loop';
 import { GameStateMachine } from './core/state';
 import { Flame } from './gameplay/flame';
 import { Score } from './gameplay/score';
+import { Combo } from './gameplay/combo';
 import { Spawner } from './gameplay/spawner';
 import { GameScene } from './render/scene';
 import { Sky } from './render/sky';
@@ -34,21 +35,46 @@ async function boot() {
   let physics = new PhysicsWorld();
   const flame = new Flame();
   const score = new Score();
+  const combo = new Combo();
   let spawner = new Spawner(Date.now() % 100000, PLAY_HALF_WIDTH - 0.5);
+  let invulnUntil = 0; // run clock seconds
 
-  const hud = new Hud(uiRoot);
+  const clock = () => performance.now() / 1000;
+
+  const hud = new Hud(uiRoot, () => doBurst());
   hud.setVisible(false);
   const sfx = new Sfx();
 
+  function doBurst() {
+    if (sm.state !== 'run' || !flame.spend(BURST_COST)) return;
+    physics.burst();
+    sfx.burst();
+    const lp = physics.lanternPosition();
+    sparks.burst(lp.x, lp.y, 14);
+    invulnUntil = clock() + 0.45;
+  }
+
   function wirePhysicsEvents() {
     physics.events.on('lanternHit', ({ speed }) => {
-      if (sm.state !== 'run') return;
+      if (sm.state !== 'run' || clock() < invulnUntil) return;
       flame.hit(speed);
       sfx.hit();
+      combo.break();
       if (flame.dead) sm.transition('gameover');
     });
     physics.events.on('emberCollected', () => { flame.flare(); sfx.ember(); });
-    physics.events.on('shieldDeflect', ({ x, y, speed }) => { sparks.burst(x, y, speed); sfx.deflect(speed); });
+    physics.events.on('shieldDeflect', ({ x, y, speed, perfect }) => {
+      const c = combo.deflect(clock());
+      sparks.burst(x, y, perfect ? speed + 10 : speed);
+      score.addBonus(Math.round((perfect ? 25 : 10) * combo.scoreMultiplier));
+      if (perfect) {
+        flame.flare(4);
+        hud.flash(0.55);
+        sfx.perfect(c.count);
+      } else {
+        sfx.deflect(speed);
+      }
+    });
   }
 
   const startRun = () => {
@@ -58,6 +84,8 @@ async function boot() {
     wirePhysicsEvents();
     flame.reset();
     score.reset();
+    combo.reset();
+    invulnUntil = 0;
     spawner = new Spawner(Date.now() % 100000, PLAY_HALF_WIDTH - 0.5);
     hud.setVisible(true);
     screens.show('none');
@@ -90,6 +118,7 @@ async function boot() {
   const loop = new FixedLoop(1 / 60, (dt) => {
     if (sm.state !== 'run') return;
     physics.step(dt);
+    combo.expire(clock());
     const pos = physics.lanternPosition();
     score.update(pos.y, flame.multiplier);
     const spawn = spawner.tick(dt, pos.y);
@@ -120,7 +149,7 @@ async function boot() {
     obstacleVis.sync(physics, now / 1000);
     sparks.update(elapsedSec);
     post.setBrightness(flame.brightness);
-    hud.update(score.points, flame.value);
+    hud.update(score.points, flame.value, combo.count, flame.value >= BURST_COST);
     post.render(elapsedSec);
     requestAnimationFrame(frame);
   }

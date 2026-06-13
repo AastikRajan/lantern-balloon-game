@@ -18,6 +18,12 @@ export class Flame {
     return dmg;
   }
 
-  flare(): void { this._value = Math.min(100, this._value + 22); }
+  flare(amount = 22): void { this._value = Math.min(100, this._value + amount); }
+  /** Spend flame (e.g. a burst). Returns true if there was enough. */
+  spend(amount: number): boolean {
+    if (this._value < amount) return false;
+    this._value -= amount;
+    return true;
+  }
   reset(): void { this._value = 70; }
 }

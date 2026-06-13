@@ -20,6 +20,34 @@ html, body { height: 100%; overflow: hidden; background: #1a1030; touch-action: 
 .hud-flame-fill.low { background: linear-gradient(90deg, #ff3b3b, #ff7a2a);
   animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .55; } }
+.hud-top { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+/* combo readout */
+.hud-combo { margin-top: 4px; font-size: 30px; font-weight: 800; letter-spacing: .02em;
+  color: #ffe2a6; text-shadow: 0 0 22px rgba(255,180,80,.7);
+  opacity: 0; transform: scale(.6); transition: opacity .15s ease, transform .15s ease;
+  font-variant-numeric: tabular-nums; }
+.hud-combo.show { opacity: 1; transform: scale(1); }
+.hud-combo.pop { animation: combopop .22s ease-out; }
+@keyframes combopop { 0% { transform: scale(1.45); } 100% { transform: scale(1); } }
+
+/* flame-burst button (thumb zone) */
+.hud-burst { position: fixed; right: calc(env(safe-area-inset-right) + 22px);
+  bottom: calc(env(safe-area-inset-bottom) + 30px);
+  width: 68px; height: 68px; border-radius: 50%; border: 2px solid rgba(180,235,255,.35);
+  background: radial-gradient(circle at 50% 38%, rgba(120,210,255,.35), rgba(30,60,110,.55));
+  color: #eaf8ff; font-size: 26px; display: grid; place-items: center;
+  box-shadow: 0 6px 22px rgba(0,0,0,.35); opacity: .4; transition: opacity .2s, transform .1s, box-shadow .2s; }
+.hud-burst.ready { opacity: 1; border-color: rgba(180,235,255,.9);
+  box-shadow: 0 0 26px rgba(110,200,255,.6), inset 0 0 16px rgba(150,220,255,.5); }
+.hud-burst.ready .hud-burst-glyph { animation: burstglow 1.6s ease-in-out infinite; }
+.hud-burst:active { transform: scale(.9); }
+@keyframes burstglow { 50% { text-shadow: 0 0 18px rgba(150,220,255,.95); } }
+
+/* full-screen flash for Perfect Deflects */
+.screen-flash { position: fixed; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle at 50% 60%, rgba(255,240,200,.9), rgba(255,210,150,.25) 55%, transparent 75%);
+  mix-blend-mode: screen; }
 
 /* --- Screens (glass panels, thumb-zone CTA) --- */
 .screen { position: absolute; inset: 0; display: none; flex-direction: column;

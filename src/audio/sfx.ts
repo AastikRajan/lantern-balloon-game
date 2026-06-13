@@ -102,6 +102,24 @@ export class Sfx {
     this.tone(990, 1320, 0.22, 0.06, 'sine');
   }
 
+  /** Bright sparkle for a Perfect Deflect; pitch climbs with combo. */
+  perfect(combo: number): void {
+    const base = 880 * Math.pow(1.06, Math.min(combo, 16));
+    this.tone(base, base * 1.5, 0.12, 0.11, 'triangle');
+    this.tone(base * 2, base * 2.5, 0.18, 0.05, 'sine');
+  }
+
+  /** Whoosh + boom for the flame burst. */
+  burst(): void {
+    this.noiseBurst(0.3, 300, 0.5, 0.22, 'lowpass');
+    this.tone(160, 50, 0.35, 0.18, 'sine');
+  }
+
+  /** Soft chime for rescuing a wisp. */
+  rescue(): void {
+    this.tone(780, 1170, 0.2, 0.09, 'sine');
+  }
+
   /** Soft low thud when the lantern is struck. */
   hit(): void {
     this.tone(180, 60, 0.22, 0.16, 'sine');

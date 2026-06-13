@@ -6,6 +6,9 @@ export const RISE_SPEED = 3.8;           // world units / s
 export const PLAY_HALF_WIDTH = 5;        // gameplay corridor half width
 export const SHIELD_HALF_WIDTH = 1.0;    // shield bar half length
 export const SHIELD_FINGER_OFFSET = 1.1; // shield sits this far above the touch point
+export const PERFECT_DIST = 2.4;         // deflect within this of the lantern = Perfect
+export const BURST_COST = 22;            // flame spent per burst
+export const BURST_STRENGTH = 16;        // outward impulse scale
 
 export interface ObstacleState {
   kind: Exclude<SpawnKind, 'ember'>;
@@ -16,7 +19,7 @@ export interface EmberState { body: RAPIER.RigidBody; }
 type PhysicsEvents = {
   lanternHit: { speed: number };
   emberCollected: Record<string, never>;
-  shieldDeflect: { x: number; y: number; speed: number };
+  shieldDeflect: { x: number; y: number; speed: number; perfect: boolean };
 };
 
 const OBSTACLE_SHAPES: Record<Exclude<SpawnKind, 'ember'>, { hx: number; hy: number; density: number }> = {
@@ -150,7 +153,9 @@ export class PhysicsWorld {
         if (obs) {
           const ov = obs.body.linvel();
           const tt = obs.body.translation();
-          this.events.emit('shieldDeflect', { x: tt.x, y: tt.y, speed: Math.hypot(ov.x, ov.y) });
+          const lp = this.lantern.translation();
+          const perfect = Math.hypot(tt.x - lp.x, tt.y - lp.y) < PERFECT_DIST;
+          this.events.emit('shieldDeflect', { x: tt.x, y: tt.y, speed: Math.hypot(ov.x, ov.y), perfect });
         }
         return;
       }
@@ -171,6 +176,19 @@ export class PhysicsWorld {
         const speed = Math.hypot(ov.x - lv.x, ov.y - lv.y);
         this.events.emit('lanternHit', { speed });
       }
+    });
+  }
+
+  /** Shove every obstacle radially away from the lantern (flame burst). */
+  burst(): void {
+    const lp = this.lantern.translation();
+    this.obstacles.forEach((o) => {
+      const t = o.body.translation();
+      const dx = t.x - lp.x, dy = t.y - lp.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const falloff = Math.max(0.25, 1 - d / 9);
+      const mass = o.body.mass();
+      o.body.applyImpulse({ x: (dx / d) * BURST_STRENGTH * falloff * mass, y: (dy / d) * BURST_STRENGTH * falloff * mass }, true);
     });
   }
 
