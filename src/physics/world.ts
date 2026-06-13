@@ -44,6 +44,7 @@ export class PhysicsWorld {
   private embers = new Map<number, EmberState>();
   private wisps = new Map<number, { body: RAPIER.RigidBody; seed: number }>();
   private wispClock = 0;
+  private obstacleGravityScale = 1;
 
   constructor() {
     // Lantern: floats upward, only jostled by obstacles that get through.
@@ -86,6 +87,9 @@ export class PhysicsWorld {
   }
   obstacleCount(): number { return this.obstacles.size; }
 
+  /** Secret DDA: scale how fast obstacles fall (1 = normal, <1 = easier). */
+  setObstacleGravityScale(s: number): void { this.obstacleGravityScale = s; }
+
   /** Command the shield to a world position (player finger, 1:1). */
   setShieldTarget(x: number, y: number): void {
     this.shieldTarget.x = Math.max(-PLAY_HALF_WIDTH - 1, Math.min(PLAY_HALF_WIDTH + 1, x));
@@ -111,6 +115,7 @@ export class PhysicsWorld {
       RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(x, y)
         .setAngvel((Math.random() - 0.5) * 4)
+        .setGravityScale(this.obstacleGravityScale)
         .setCcdEnabled(true),
     );
     const col = this.world.createCollider(

@@ -4,6 +4,7 @@ import { GameStateMachine } from './core/state';
 import { Flame } from './gameplay/flame';
 import { Score } from './gameplay/score';
 import { Combo } from './gameplay/combo';
+import { Dda } from './gameplay/dda';
 import { Spawner } from './gameplay/spawner';
 import { GameScene } from './render/scene';
 import { Sky } from './render/sky';
@@ -36,9 +37,11 @@ async function boot() {
   const flame = new Flame();
   const score = new Score();
   const combo = new Combo();
+  const dda = new Dda();
   let spawner = new Spawner(Date.now() % 100000, PLAY_HALF_WIDTH - 0.5);
   let invulnUntil = 0; // run clock seconds
   let rescuedThisRun = 0;
+  let runPeak = 0;
 
   const clock = () => performance.now() / 1000;
 
@@ -95,6 +98,8 @@ async function boot() {
     combo.reset();
     invulnUntil = 0;
     rescuedThisRun = 0;
+    runPeak = 0;
+    physics.setObstacleGravityScale(dda.ease);
     spawner = new Spawner(Date.now() % 100000, PLAY_HALF_WIDTH - 0.5);
     hud.setVisible(true);
     screens.show('none');
@@ -109,7 +114,7 @@ async function boot() {
   const sm = new GameStateMachine({
     menu: () => { hud.setVisible(false); screens.show('home'); },
     run: startRun,
-    gameover: () => { hud.setVisible(false); sfx.gameover(); screens.show('over', score.points); },
+    gameover: () => { dda.recordRun(runPeak); hud.setVisible(false); sfx.gameover(); screens.show('over', score.points); },
   });
 
   wirePhysicsEvents();
@@ -129,6 +134,7 @@ async function boot() {
     physics.step(dt);
     combo.expire(clock());
     const pos = physics.lanternPosition();
+    if (pos.y > runPeak) runPeak = pos.y;
     score.update(pos.y, flame.multiplier);
     const spawn = spawner.tick(dt, pos.y);
     if (spawn) {
