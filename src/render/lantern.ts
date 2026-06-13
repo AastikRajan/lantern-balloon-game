@@ -53,6 +53,12 @@ export class LanternVisual {
     this.group.add(this.halo, this.body, this.flame, this.coreGlow, this.light);
   }
 
+  /** Apply a skin color to the lantern's emissive glow. */
+  setColor(hex: string): void {
+    (this.body.material as THREE.MeshStandardMaterial).emissive.set(hex);
+    this.light.color.set(hex);
+  }
+
   update(x: number, y: number, vx: number, vy: number,
          lightIntensity: number, lightDistance: number, dt: number): void {
     this.group.position.set(x, y, 0);

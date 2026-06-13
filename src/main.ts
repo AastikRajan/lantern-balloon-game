@@ -16,7 +16,10 @@ import { PostChain } from './render/post';
 import { Sparks } from './render/particles';
 import { Hud } from './ui/hud';
 import { Screens } from './ui/screens';
+import { Shop } from './ui/shop';
 import { Sfx } from './audio/sfx';
+import { loadSave, writeSave } from './meta/save';
+import { deriveLoadout, skinById } from './meta/progression';
 
 async function boot() {
   await PhysicsWorld.init();
@@ -41,7 +44,16 @@ async function boot() {
   let spawner = new Spawner(Date.now() % 100000, PLAY_HALF_WIDTH - 0.5);
   let invulnUntil = 0; // run clock seconds
   let rescuedThisRun = 0;
+  let embersThisRun = 0;
   let runPeak = 0;
+
+  const save = loadSave();
+  const applySkin = () => {
+    const skin = skinById(save.lanternSkin);
+    lanternVis.setColor(skin.lantern);
+    shieldVis.setColor(skin.shield);
+  };
+  applySkin();
 
   const clock = () => performance.now() / 1000;
 
@@ -66,7 +78,7 @@ async function boot() {
       combo.break();
       if (flame.dead) sm.transition('gameover');
     });
-    physics.events.on('emberCollected', () => { flame.flare(); sfx.ember(); });
+    physics.events.on('emberCollected', () => { flame.flare(); sfx.ember(); embersThisRun++; });
     physics.events.on('wispRescued', () => {
       flame.flare(10);
       const lp = physics.lanternPosition();
@@ -90,31 +102,54 @@ async function boot() {
 
   const startRun = () => {
     sfx.resume(); // triggered from the Rise/Retry button gesture
+    const loadout = deriveLoadout(save.upgrades);
     physics.dispose();
-    physics = new PhysicsWorld();
+    physics = new PhysicsWorld({ shieldHalfWidth: loadout.shieldHalfWidth, magnetRadius: loadout.magnetRadius });
     wirePhysicsEvents();
+    flame.configure(loadout.startFlame, loadout.maxFlame);
     flame.reset();
     score.reset();
     combo.reset();
     invulnUntil = 0;
     rescuedThisRun = 0;
+    embersThisRun = 0;
     runPeak = 0;
     physics.setObstacleGravityScale(dda.ease);
+    shieldVis.setHalfWidth(loadout.shieldHalfWidth);
+    applySkin();
     spawner = new Spawner(Date.now() % 100000, PLAY_HALF_WIDTH - 0.5);
     hud.setVisible(true);
     screens.show('none');
+  };
+
+  const bankRun = () => {
+    save.embers += embersThisRun + rescuedThisRun * 3;
+    save.wispsTotal += rescuedThisRun;
+    save.bestScore = Math.max(save.bestScore, score.points);
+    writeSave(save);
+    screens.setCurrency(save.embers);
   };
 
   const screens = new Screens(
     uiRoot,
     () => sm.transition('run'),
     () => sm.transition('run'),
+    () => shop.open(),
   );
+  screens.setCurrency(save.embers);
+
+  const shop = new Shop(uiRoot, save, () => { writeSave(save); applySkin(); screens.setCurrency(save.embers); });
 
   const sm = new GameStateMachine({
     menu: () => { hud.setVisible(false); screens.show('home'); },
     run: startRun,
-    gameover: () => { dda.recordRun(runPeak); hud.setVisible(false); sfx.gameover(); screens.show('over', score.points); },
+    gameover: () => {
+      dda.recordRun(runPeak);
+      bankRun();
+      hud.setVisible(false);
+      sfx.gameover();
+      screens.show('over', score.points, save.bestScore);
+    },
   });
 
   wirePhysicsEvents();

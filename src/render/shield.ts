@@ -30,6 +30,17 @@ export class ShieldVisual {
 
   private tilt = 0;
 
+  /** Scale the bar to match an upgraded shield half-width. */
+  setHalfWidth(hw: number): void {
+    const s = hw / SHIELD_HALF_WIDTH;
+    this.bar.scale.x = s;
+    this.glow.scale.x = (SHIELD_HALF_WIDTH * 2 + 0.3) * s + 1.6;
+  }
+
+  setColor(hex: string): void {
+    (this.bar.material as THREE.MeshStandardMaterial).emissive.set(hex);
+  }
+
   update(x: number, y: number, dt: number): void {
     this.time += dt;
     this.group.position.set(x, y, 0.3);

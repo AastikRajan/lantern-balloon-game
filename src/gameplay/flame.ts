@@ -1,5 +1,13 @@
 export class Flame {
   private _value = 70;
+  private _start = 70;
+  private _max = 100;
+
+  /** Apply upgrade loadout: starting + maximum flame. */
+  configure(start: number, max: number): void {
+    this._start = start;
+    this._max = max;
+  }
 
   get value(): number { return this._value; }
   get dead(): boolean { return this._value <= 0; }
@@ -18,12 +26,12 @@ export class Flame {
     return dmg;
   }
 
-  flare(amount = 22): void { this._value = Math.min(100, this._value + amount); }
+  flare(amount = 22): void { this._value = Math.min(this._max, this._value + amount); }
   /** Spend flame (e.g. a burst). Returns true if there was enough. */
   spend(amount: number): boolean {
     if (this._value < amount) return false;
     this._value -= amount;
     return true;
   }
-  reset(): void { this._value = 70; }
+  reset(): void { this._value = this._start; }
 }

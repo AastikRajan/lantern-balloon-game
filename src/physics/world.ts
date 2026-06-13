@@ -45,8 +45,12 @@ export class PhysicsWorld {
   private wisps = new Map<number, { body: RAPIER.RigidBody; seed: number }>();
   private wispClock = 0;
   private obstacleGravityScale = 1;
+  private shieldHalfWidth: number;
+  private magnetRadius: number;
 
-  constructor() {
+  constructor(opts: { shieldHalfWidth?: number; magnetRadius?: number } = {}) {
+    this.shieldHalfWidth = opts.shieldHalfWidth ?? SHIELD_HALF_WIDTH;
+    this.magnetRadius = opts.magnetRadius ?? 0;
     // Lantern: floats upward, only jostled by obstacles that get through.
     const desc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(0, 0)
@@ -66,7 +70,7 @@ export class PhysicsWorld {
       RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0, -3),
     );
     this.shieldCollider = this.world.createCollider(
-      RAPIER.ColliderDesc.roundCuboid(SHIELD_HALF_WIDTH, 0.06, 0.14)
+      RAPIER.ColliderDesc.roundCuboid(this.shieldHalfWidth, 0.06, 0.14)
         .setRestitution(0.55)
         .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS),
       this.shield,
@@ -167,6 +171,23 @@ export class PhysicsWorld {
       const wander = Math.sin(this.wispClock * 1.3 + w.seed) * 0.6;
       w.body.setLinvel({ x: wander, y: 1.1 }, true);
     });
+
+    // ember/wisp magnet: pull nearby pickups toward the lantern
+    if (this.magnetRadius > 0) {
+      const lp = this.lantern.translation();
+      const pull = (b: RAPIER.RigidBody) => {
+        const t = b.translation();
+        const dx = lp.x - t.x, dy = lp.y - t.y;
+        const d = Math.hypot(dx, dy);
+        if (d < this.magnetRadius && d > 0.001) {
+          const s = (1 - d / this.magnetRadius) * 7;
+          const v = b.linvel();
+          b.setLinvel({ x: v.x + (dx / d) * s, y: v.y + (dy / d) * s }, true);
+        }
+      };
+      this.embers.forEach((e) => pull(e.body));
+      this.wisps.forEach((w) => pull(w.body));
+    }
 
     this.world.timestep = dt;
     this.world.step(this.queue);
