@@ -27,7 +27,7 @@ export class PhysicsWorld {
   static async init(): Promise<void> { await RAPIER.init(); }
 
   readonly events = new EventBus<PhysicsEvents>();
-  private world = new RAPIER.World({ x: 0, y: -7.5 });
+  private world = new RAPIER.World({ x: 0, y: -4.2 });
   private queue = new RAPIER.EventQueue(true);
   private lantern: RAPIER.RigidBody;
   private lanternCollider: RAPIER.Collider;
@@ -115,11 +115,11 @@ export class PhysicsWorld {
     // steady rise: ease vertical velocity toward RISE_SPEED, keep lateral free
     const v = this.lantern.linvel();
     this.lantern.setLinvel({ x: v.x, y: v.y + (RISE_SPEED - v.y) * 0.15 }, true);
-    // soft corridor: nudge back inside the play width
+    // gentle self-centering so the lantern eases back toward the middle,
+    // with a firmer wall near the corridor edge
     const t = this.lantern.translation();
-    if (Math.abs(t.x) > PLAY_HALF_WIDTH) {
-      this.lantern.applyImpulse({ x: -Math.sign(t.x) * 0.6 * this.lantern.mass(), y: 0 }, true);
-    }
+    const centering = Math.abs(t.x) > PLAY_HALF_WIDTH ? 1.1 : 0.28;
+    this.lantern.applyImpulse({ x: -t.x * centering * this.lantern.mass() * dt, y: 0 }, true);
 
     this.world.timestep = dt;
     this.world.step(this.queue);

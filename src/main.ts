@@ -6,6 +6,7 @@ import { Score } from './gameplay/score';
 import { Spawner } from './gameplay/spawner';
 import { GameScene } from './render/scene';
 import { Sky } from './render/sky';
+import { Starfield } from './render/starfield';
 import { LanternVisual } from './render/lantern';
 import { ObstacleVisuals } from './render/obstacles';
 import { PostChain } from './render/post';
@@ -20,10 +21,11 @@ async function boot() {
   const uiRoot = document.getElementById('ui')!;
   const gfx = new GameScene(canvas);
   const sky = new Sky();
+  const stars = new Starfield();
   const lanternVis = new LanternVisual();
   const obstacleVis = new ObstacleVisuals(gfx.scene);
   const gust = new GustParticles();
-  gfx.scene.add(sky.mesh, lanternVis.group, gust.points);
+  gfx.scene.add(sky.mesh, stars.points, lanternVis.group, gust.points);
   const post = new PostChain(gfx.renderer, gfx.scene, gfx.camera);
 
   let physics = new PhysicsWorld();
@@ -98,11 +100,11 @@ async function boot() {
     score.update(pos.y, flame.multiplier);
     const spawn = spawner.tick(dt, pos.y);
     if (spawn) {
-      const spawnY = gfx.camera.position.y + 16;
+      const spawnY = gfx.camera.position.y + 10;
       if (spawn.kind === 'ember') physics.spawnEmber(spawn.x, spawnY);
       else physics.spawnObstacle(spawn.kind, spawn.x, spawnY);
     }
-    physics.cullBelow(gfx.camera.position.y - 14);
+    physics.cullBelow(gfx.camera.position.y - 12);
   });
 
   // --- Render loop ---
@@ -116,6 +118,7 @@ async function boot() {
     const vel = physics.lanternVelocity();
     gfx.follow(pos.y);
     sky.update(gfx.camera.position.x, gfx.camera.position.y, pos.y);
+    stars.update(gfx.camera.position.x, gfx.camera.position.y, now / 1000);
     lanternVis.update(pos.x, pos.y, vel.x, vel.y,
       flame.lightIntensity, flame.lightDistance, elapsedSec);
     obstacleVis.sync(physics, now / 1000);

@@ -3,7 +3,7 @@ export interface SpawnRequest { kind: SpawnKind; x: number; }
 
 export function spawnInterval(altitude: number): number {
   const t = Math.min(1, altitude / 400);
-  return 1.6 - (1.6 - 0.55) * t;
+  return 1.05 - (1.05 - 0.45) * t;
 }
 
 /** Deterministic LCG so runs are reproducible per seed. */

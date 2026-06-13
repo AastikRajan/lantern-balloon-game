@@ -8,9 +8,12 @@ const GEOMETRIES: Record<string, THREE.BufferGeometry> = {
   branch: new THREE.CylinderGeometry(0.16, 0.2, 2.2, 7).rotateZ(Math.PI / 2),
 };
 const MATERIALS: Record<string, THREE.MeshStandardMaterial> = {
-  tile: new THREE.MeshStandardMaterial({ color: '#5a4a6e', roughness: 0.85 }),
-  kite: new THREE.MeshStandardMaterial({ color: '#3e6e8f', roughness: 0.6, metalness: 0.1 }),
-  branch: new THREE.MeshStandardMaterial({ color: '#4a3b30', roughness: 1 }),
+  tile: new THREE.MeshStandardMaterial({
+    color: '#6a5780', emissive: '#2a1b4a', emissiveIntensity: 0.6, roughness: 0.8 }),
+  kite: new THREE.MeshStandardMaterial({
+    color: '#46b0c8', emissive: '#0e5a72', emissiveIntensity: 0.7, roughness: 0.5, metalness: 0.15 }),
+  branch: new THREE.MeshStandardMaterial({
+    color: '#5a4636', emissive: '#1c1208', emissiveIntensity: 0.4, roughness: 1 }),
 };
 const EMBER_MAT = new THREE.MeshBasicMaterial({ color: '#ffd27a' }); // blooms
 
