@@ -10,11 +10,12 @@ import { Spawner } from './gameplay/spawner';
 import { GameScene } from './render/scene';
 import { Sky, BIOME_HEIGHT } from './render/sky';
 import { Starfield } from './render/starfield';
+import { Backdrop } from './render/backdrop';
 import { LanternVisual } from './render/lantern';
 import { ShieldVisual } from './render/shield';
 import { ObstacleVisuals } from './render/obstacles';
 import { PostChain } from './render/post';
-import { Sparks } from './render/particles';
+import { Sparks, EmberTrail } from './render/particles';
 import { Hud } from './ui/hud';
 import { Screens } from './ui/screens';
 import { Shop } from './ui/shop';
@@ -30,11 +31,14 @@ async function boot() {
   const gfx = new GameScene(canvas);
   const sky = new Sky(gfx.scene);
   const stars = new Starfield();
+  const backdrop = new Backdrop();
   const lanternVis = new LanternVisual();
   const shieldVis = new ShieldVisual();
   const obstacleVis = new ObstacleVisuals(gfx.scene);
   const sparks = new Sparks();
-  gfx.scene.add(sky.mesh, stars.points, lanternVis.group, shieldVis.group, sparks.points);
+  const trail = new EmberTrail();
+  gfx.scene.add(sky.mesh, backdrop.mesh, stars.points, lanternVis.group, shieldVis.group,
+    sparks.points, trail.points);
   const post = new PostChain(gfx.renderer, gfx.scene, gfx.camera);
 
   let physics = new PhysicsWorld();
@@ -60,12 +64,15 @@ async function boot() {
     const skin = skinById(save.lanternSkin);
     lanternVis.setColor(skin.lantern);
     shieldVis.setColor(skin.shield);
+    trail.setColor(skin.lantern);
   };
   applySkin();
 
   const clock = () => performance.now() / 1000;
 
-  const hud = new Hud(uiRoot, () => doBurst());
+  const hud = new Hud(uiRoot, () => doBurst(), () => {
+    if (sm.state === 'run') sm.transition('pause');
+  });
   hud.setVisible(false);
   const sfx = new Sfx();
 
@@ -84,6 +91,9 @@ async function boot() {
       flame.hit(speed);
       sfx.hit();
       combo.break();
+      // damage juice: red edge flash + screen shake scaled by impact speed
+      hud.flash(Math.min(0.85, 0.35 + speed * 0.04), 'hit');
+      gfx.shake(Math.min(0.5, 0.16 + speed * 0.03));
       if (flame.dead) sm.transition('gameover');
     });
     physics.events.on('emberCollected', () => { flame.flare(); sfx.ember(); embersThisRun++; });
@@ -172,33 +182,61 @@ async function boot() {
     writeSave(save);
     screens.setCurrency(save.embers);
     screens.setGoals(save.goals);
+    screens.setBest(save.bestScore);
   };
 
-  const screens = new Screens(
-    uiRoot,
-    () => { dailyMode = false; sm.transition('run'); },
-    () => sm.transition('run'),
-    () => shop.open(),
-    () => { dailyMode = true; sm.transition('run'); },
-  );
+  let resuming = false; // pause -> run without resetting the run
+  const screens = new Screens(uiRoot, {
+    onStart: () => { dailyMode = false; sm.transition('run'); },
+    onRetry: () => sm.transition('run'),
+    onShop: () => shop.open(),
+    onDaily: () => { dailyMode = true; sm.transition('run'); },
+    onResume: () => { resuming = true; sm.transition('run'); },
+    onRestart: () => sm.transition('run'),
+    onMenu: () => sm.transition('menu'),
+  });
   screens.setCurrency(save.embers);
   screens.setGoals(save.goals);
+  screens.setBest(save.bestScore);
 
   const shop = new Shop(uiRoot, save, () => { writeSave(save); applySkin(); screens.setCurrency(save.embers); });
 
+  const endRun = (won: boolean) => {
+    dda.recordRun(runPeak);
+    bankRun();
+    hud.setVisible(false);
+    if (won) sfx.perfect(8); else sfx.gameover();
+    screens.show(won ? 'won' : 'over', score.points, save.bestScore, lastCompleted);
+  };
+
   const sm = new GameStateMachine({
     menu: () => { hud.setVisible(false); screens.show('home'); },
-    run: startRun,
-    gameover: () => {
-      dda.recordRun(runPeak);
-      bankRun();
-      hud.setVisible(false);
-      sfx.gameover();
-      screens.show('over', score.points, save.bestScore, lastCompleted);
+    run: () => {
+      if (resuming) { resuming = false; screens.show('none'); hud.setVisible(true); }
+      else startRun();
     },
+    pause: () => screens.show('pause'),
+    gameover: () => endRun(false),
+    won: () => endRun(true),
   });
 
   wirePhysicsEvents();
+
+  // --- Keyboard: Esc/P pause-resume, Space flame burst ---
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+      if (sm.state === 'run') sm.transition('pause');
+      else if (sm.state === 'pause') { resuming = true; sm.transition('run'); }
+    } else if (e.code === 'Space' && sm.state === 'run') {
+      e.preventDefault();
+      doBurst();
+    }
+  });
+
+  // Auto-pause when the tab is hidden so the run isn't lost in the background.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && sm.state === 'run') sm.transition('pause');
+  });
 
   // --- Input: pointer position -> shield target, 1:1 and immediate ---
   const trackPointer = (clientX: number, clientY: number) => {
@@ -210,12 +248,14 @@ async function boot() {
   canvas.addEventListener('pointermove', (e) => trackPointer(e.clientX, e.clientY));
 
   // --- Fixed-step simulation ---
+  const WIN_ALTITUDE = BIOME_HEIGHT * 4; // clear all four biomes -> ascended
   const loop = new FixedLoop(1 / 60, (dt) => {
     if (sm.state !== 'run') return;
     physics.step(dt);
     combo.expire(clock());
     const pos = physics.lanternPosition();
     if (pos.y > runPeak) runPeak = pos.y;
+    if (pos.y >= WIN_ALTITUDE) { sm.transition('won'); return; }
     score.update(pos.y, flame.multiplier);
     const spawn = spawner.tick(dt, pos.y);
     if (spawn) {
@@ -240,10 +280,13 @@ async function boot() {
     gfx.follow(pos.y, elapsedSec);
     sky.update(gfx.camera.position.x, gfx.camera.position.y, pos.y);
     stars.update(gfx.camera.position.x, gfx.camera.position.y, now / 1000);
+    backdrop.update(gfx.camera.position.x, gfx.camera.position.y, pos.y, elapsedSec);
     lanternVis.update(pos.x, pos.y, vel.x, vel.y,
       flame.lightIntensity, flame.lightDistance, elapsedSec);
     shieldVis.update(sp.x, sp.y, elapsedSec);
     obstacleVis.sync(physics, now / 1000);
+    if (sm.state === 'run') trail.emit(pos.x, pos.y, flame.value / 100, elapsedSec);
+    trail.update(elapsedSec);
     sparks.update(elapsedSec);
     post.setBrightness(flame.brightness);
     hud.update(score.points, flame.value, combo.count, flame.value >= BURST_COST);

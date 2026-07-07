@@ -1,6 +1,10 @@
 # 🎈 Lantern
 
+🎮 **Play now → <https://aastikrajan.github.io/lantern-balloon-game/>**
+
 A physics puzzle-platformer built on real rigid-body simulation: guide and **protect the balloon** through hazards using momentum, not precision-clicking. Rendered with Three.js, simulated with Rapier2D.
+
+**Controls:** drag to move the shield · ✦ button / Space for flame burst · Esc/P to pause. Climb through all four biomes to reach the stars.
 
 ## Play / run locally
 

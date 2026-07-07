@@ -7,16 +7,17 @@ export class Hud {
   private burstBtn: HTMLButtonElement;
   private lastCombo = -1;
 
-  constructor(parent: HTMLElement, onBurst: () => void) {
+  constructor(parent: HTMLElement, onBurst: () => void, onPause?: () => void) {
     this.root = document.createElement('div');
     this.root.className = 'hud';
     this.root.innerHTML = `
+      <button class="hud-pause interactive" aria-label="Pause" title="Pause (Esc)">❚❚</button>
       <div class="hud-top">
         <div class="hud-score">0</div>
         <div class="hud-flame"><div class="hud-flame-fill"></div></div>
       </div>
       <div class="hud-combo"></div>
-      <button class="hud-burst interactive" aria-label="Flame burst">
+      <button class="hud-burst interactive" aria-label="Flame burst" title="Flame burst (Space)">
         <span class="hud-burst-glyph">✦</span>
       </button>`;
     parent.appendChild(this.root);
@@ -24,7 +25,11 @@ export class Hud {
     this.flameFill = this.root.querySelector('.hud-flame-fill')!;
     this.comboEl = this.root.querySelector('.hud-combo')!;
     this.burstBtn = this.root.querySelector('.hud-burst')!;
-    this.burstBtn.addEventListener('click', onBurst);
+    // blur after click so a later Space keypress can't re-trigger the button
+    this.burstBtn.addEventListener('click', () => { onBurst(); this.burstBtn.blur(); });
+    const pauseBtn = this.root.querySelector('.hud-pause') as HTMLButtonElement;
+    if (onPause) pauseBtn.addEventListener('click', () => { onPause(); pauseBtn.blur(); });
+    else pauseBtn.style.display = 'none';
 
     this.flashEl = document.createElement('div');
     this.flashEl.className = 'screen-flash';
@@ -52,8 +57,12 @@ export class Hud {
     this.burstBtn.classList.toggle('ready', burstReady);
   }
 
-  /** Brief white flash for Perfect Deflects (0..1 intensity). */
-  flash(intensity = 0.6): void {
+  /**
+   * Brief full-screen flash: warm for Perfect Deflects, red-edged for damage.
+   * Intensity 0..1.
+   */
+  flash(intensity = 0.6, kind: 'perfect' | 'hit' = 'perfect'): void {
+    this.flashEl.classList.toggle('hit', kind === 'hit');
     this.flashEl.style.transition = 'none';
     this.flashEl.style.opacity = String(intensity);
     void this.flashEl.offsetWidth;

@@ -4,6 +4,8 @@ export class GameScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera: THREE.PerspectiveCamera;
+  private baseY = 0;
+  private shakeAmp = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -35,10 +37,23 @@ export class GameScene {
     this.camera.updateProjectionMatrix();
   }
 
+  /** Gentle trauma-style screen shake; intensity in world units (~0.2–0.5). */
+  shake(intensity: number): void {
+    this.shakeAmp = Math.max(this.shakeAmp, intensity);
+  }
+
   /** Camera follows lantern altitude with a slight lead. */
   follow(lanternY: number, dt = 1 / 60): void {
     const damp = 1 - Math.pow(0.0006, dt); // frame-rate independent
-    this.camera.position.y += (lanternY + 1.8 - this.camera.position.y) * damp;
+    this.baseY += (lanternY + 1.8 - this.baseY) * damp;
+
+    // decay shake fast (~0.4s) and apply as a small random offset on top
+    this.shakeAmp *= Math.pow(0.0004, dt);
+    if (this.shakeAmp < 0.004) this.shakeAmp = 0;
+    const sx = (Math.random() * 2 - 1) * this.shakeAmp;
+    const sy = (Math.random() * 2 - 1) * this.shakeAmp * 0.6;
+    this.camera.position.x = sx;
+    this.camera.position.y = this.baseY + sy;
   }
 
   /** Screen px -> world coords on the z=0 plane. */

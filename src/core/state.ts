@@ -1,9 +1,11 @@
-export type GameState = 'menu' | 'run' | 'gameover';
+export type GameState = 'menu' | 'run' | 'pause' | 'gameover' | 'won';
 
 const VALID: Record<GameState, GameState[]> = {
   menu: ['run'],
-  run: ['gameover'],
+  run: ['pause', 'gameover', 'won'],
+  pause: ['run', 'menu'],
   gameover: ['run', 'menu'],
+  won: ['run', 'menu'],
 };
 
 export class GameStateMachine {
