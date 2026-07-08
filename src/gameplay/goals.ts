@@ -32,10 +32,10 @@ export function goalDef(id: string): GoalDef | undefined {
 }
 
 /** Fill the active list up to 3 with random goals not already present. */
-export function ensureGoals(goals: GoalState[]): GoalState[] {
+export function ensureGoals(goals: GoalState[], exclude: string[] = []): GoalState[] {
   const out = goals.filter((g) => goalDef(g.id));
   while (out.length < 3) {
-    const taken = new Set(out.map((g) => g.id));
+    const taken = new Set([...out.map((g) => g.id), ...exclude]);
     const choices = GOAL_POOL.filter((g) => !taken.has(g.id));
     if (!choices.length) break;
     out.push({ id: choices[Math.floor(Math.random() * choices.length)].id, progress: 0 });
@@ -68,5 +68,5 @@ export function applyRun(goals: GoalState[], stats: RunStats): { goals: GoalStat
       kept.push({ id: g.id, progress });
     }
   }
-  return { goals: ensureGoals(kept), completed, reward };
+  return { goals: ensureGoals(kept, completed.map((c) => c.id)), completed, reward };
 }
